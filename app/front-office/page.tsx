@@ -6,14 +6,42 @@ import { TEAMS_BY_ID } from "@/lib/data/teams";
 import { TeamLogo } from "@/components/team-logo";
 import { gradeColor, cn } from "@/lib/utils";
 import {
-  ArrowLeftRight, ChevronRight, Eye, Search, Briefcase, ListTree, Tv,
+  ArrowLeftRight, ChevronRight, Eye, Search, Briefcase, ListTree, Tv, AlertTriangle,
 } from "lucide-react";
 import { currentTeamPayroll } from "@/lib/offseason/freeAgency";
+import { userCan } from "@/lib/cpu/career";
 
 export default function FrontOfficePage() {
   const league = useLeague((s) => s.league);
   if (!league) return <Empty>No league yet.</Empty>;
-  if (!league.userTeam) return <Empty>No user team.</Empty>;
+
+  const career = league.userCareer;
+  const isFired = career?.status === "Fired";
+  const isYearOff = career?.status === "TakingYearOff";
+  const onHotSeat = career?.status === "OnHotSeat";
+
+  // If user has no team (fired / sitting out), show career-focused view instead
+  if (!league.userTeam) {
+    return (
+      <div className="space-y-4">
+        <header className="rounded-lg border border-red-500/40 bg-red-500/5 p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={20} className="text-red-300" />
+            <div className="flex-1">
+              <h1 className="font-display text-xl font-bold">{isFired ? "Free agent" : isYearOff ? "Sitting out" : "No team"}</h1>
+              <p className="text-xs text-muted">{career?.mode} — {career ? `Reputation ${career.reputation}` : ""}</p>
+            </div>
+            <Link href="/career" className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-2 text-xs font-bold text-bg tap hover:opacity-90">
+              Open career page <ChevronRight size={12} />
+            </Link>
+          </div>
+        </header>
+        <Empty>
+          You don't have a team to manage right now. Visit your <Link href="/career" className="text-accent hover:underline">career page</Link> to review job offers, take a year off, or retire.
+        </Empty>
+      </div>
+    );
+  }
 
   const userTeam = TEAMS_BY_ID[league.userTeam];
   const payroll = currentTeamPayroll(league, userTeam.id);

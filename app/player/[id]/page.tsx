@@ -11,6 +11,7 @@ import { POSITION_LABEL } from "@/lib/data/positions";
 import { topChemistry } from "@/lib/cpu/chemistry";
 import { suggestedExtensionAav } from "@/lib/cpu/contracts";
 import { labelSeverity } from "@/lib/cpu/injuries";
+import { userCan } from "@/lib/cpu/career";
 import { ArrowDown, Scissors, FileText, RefreshCw, Activity } from "lucide-react";
 
 const ATTR_GROUPS: Record<string, [string, keyof Attributes][]> = {
@@ -80,7 +81,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         </div>
       </header>
 
-      {league.userTeam === p.team && p.team && !p.retired && (
+      {league.userTeam === p.team && p.team && !p.retired && userCan(league, "contracts") && (
         <ContractActions player={p} />
       )}
 

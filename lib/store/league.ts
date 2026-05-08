@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import type {
   Game, GamePlan, League, OffenseEmphasis, DefenseEmphasis, TempoChoice,
-  Player, TradeAsset, TradeOffer, GameResult,
+  Player, TradeAsset, TradeOffer, GameResult, UserMode,
 } from "@/lib/types";
 import { TEAMS } from "@/lib/data/teams";
 import { RNG } from "@/lib/rng";
@@ -32,6 +32,10 @@ import {
 import { maybeGenerateSons } from "@/lib/cpu/lineage";
 import { rollUpSeasonRecords } from "@/lib/cpu/records";
 import { autoStashLowEndPlayers, moveToPracticeSquad, elevateFromPracticeSquad } from "@/lib/cpu/practiceSquad";
+import {
+  buildInitialCareer, evaluateUserSeason, generateJobOffers,
+  acceptJobOffer as acceptJobOfferRaw, takeYearOff as takeYearOffRaw, retireFromCareer as retireFromCareerRaw,
+} from "@/lib/cpu/career";
 import type { SaveMeta } from "@/lib/types";
 
 interface LeagueStore {
@@ -39,7 +43,7 @@ interface LeagueStore {
   hydrated: boolean;
   busy: boolean;
   hydrate: () => Promise<void>;
-  newLeague: (opts: { userTeam: string; seed?: string; startYear?: number }) => Promise<void>;
+  newLeague: (opts: { userTeam: string; userMode?: UserMode; seed?: string; startYear?: number }) => Promise<void>;
   resetLeague: () => Promise<void>;
   saveNow: () => Promise<void>;
   setUserTeam: (id: string) => void;
@@ -84,6 +88,10 @@ interface LeagueStore {
   exportSave: (id: string) => Promise<string | null>;
   importSave: (json: string) => Promise<{ ok: boolean; reason?: string; id?: string }>;
   activeSlotId: string;
+  // career
+  acceptJobOffer: (offerId: string) => { ok: boolean; reason?: string };
+  takeYearOff: () => { ok: boolean; reason?: string };
+  retireFromCareer: () => { ok: boolean; reason?: string };
 }
 
 type TradeAssetSetItem = TradeAsset;
@@ -110,6 +118,12 @@ export const useLeague = create<LeagueStore>((set, get) => ({
       if (!lg.scoutingPoints) lg.scoutingPoints = {};
       if (!lg.scoutedProspects) lg.scoutedProspects = [];
       if (!lg.mentorships) lg.mentorships = [];
+      // Backwards-compat: pre-mode saves default to Owner
+      if (!lg.userMode) lg.userMode = "Owner";
+      if (!lg.userCareer && lg.userTeam) {
+        lg.userCareer = buildInitialCareer(lg.userMode, lg.userTeam, lg.year);
+      }
+      if (!lg.jobOffers) lg.jobOffers = [];
       ensureAllFranchises(lg);
       // If a save predates the coaching system, generate staffs now
       if (Object.keys(lg.staffs).length === 0) {
@@ -145,7 +159,7 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     void get().refreshSaveSlots();
   },
 
-  newLeague: async ({ userTeam, seed, startYear }) => {
+  newLeague: async ({ userTeam, userMode = "Owner", seed, startYear }) => {
     set({ busy: true });
     const sd = seed ?? `${Date.now()}`;
     const year = startYear ?? 2026;
@@ -194,6 +208,9 @@ export const useLeague = create<LeagueStore>((set, get) => ({
       scoutingPoints: { [userTeam]: STARTING_SCOUTING_POINTS },
       scoutedProspects: [],
       mentorships: [],
+      userMode,
+      userCareer: buildInitialCareer(userMode, userTeam, year),
+      jobOffers: [],
       champions: [],
       hall: [],
       founded: year,
@@ -292,7 +309,9 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     const lg = get().league;
     if (!lg) return;
     set({ busy: true });
-    // 0) Roll up season + career records BEFORE anyone retires
+    // 0a) Evaluate user's season (HC/GM only) — hot seat / firing
+    evaluateUserSeason(lg);
+    // 0b) Roll up season + career records BEFORE anyone retires
     rollUpSeasonRecords(lg);
     // 1) Coach carousel — fires/hires + COY award using last season's records
     runCoachCarousel(lg);
@@ -323,6 +342,14 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     lg.pendingOffers = lg.pendingOffers.filter((o) => o.status === "pending" && o.year === lg.year);
     // New season → wipe last year's game plans
     lg.gamePlans = {};
+    // 10) If user is Fired or sitting out, generate job offers
+    if (lg.userCareer && (lg.userCareer.status === "Fired" || lg.userCareer.status === "TakingYearOff")) {
+      generateJobOffers(lg);
+      // While unemployed, the user has no userTeam to manage
+      if (lg.userCareer.status === "Fired" || lg.userCareer.status === "TakingYearOff") {
+        lg.userTeam = null;
+      }
+    }
     set({ league: { ...lg }, busy: false });
     await get().saveNow();
   },
@@ -547,6 +574,28 @@ export const useLeague = create<LeagueStore>((set, get) => ({
   importSave: async (json) => {
     const r = await importSlot(json);
     if (r.ok) await get().refreshSaveSlots();
+    return r;
+  },
+
+  acceptJobOffer: (offerId) => {
+    const lg = get().league;
+    if (!lg) return { ok: false, reason: "No league" };
+    const r = acceptJobOfferRaw(lg, offerId);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+  takeYearOff: () => {
+    const lg = get().league;
+    if (!lg) return { ok: false, reason: "No league" };
+    const r = takeYearOffRaw(lg);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+  retireFromCareer: () => {
+    const lg = get().league;
+    if (!lg) return { ok: false, reason: "No league" };
+    const r = retireFromCareerRaw(lg);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
     return r;
   },
 

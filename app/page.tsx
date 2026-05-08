@@ -9,7 +9,7 @@ import { GameCard } from "@/components/game-card";
 import { SimWeekButton, SimSeasonButton, SimToUserGameButton } from "@/components/sim-button";
 import { teamOvr, getRoster } from "@/lib/gen/roster";
 import { sortStandingsTeams, computePlayoffSeeds } from "@/lib/sim/season";
-import { Newspaper, ChevronRight, Tv, Clipboard } from "lucide-react";
+import { Newspaper, ChevronRight, Tv, Clipboard, Briefcase, ArrowLeftRight, ListTree } from "lucide-react";
 
 export default function Home() {
   const league = useLeague((s) => s.league);
@@ -83,6 +83,39 @@ export default function Home() {
           </Link>
         )}
       </div>
+
+      <Section title="Front Office" action={<Link href="/front-office" className="text-xs text-muted hover:text-fg flex items-center gap-1">Open hub <ChevronRight size={12} /></Link>}>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href="/front-office" className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent/40 hover:bg-surface2 tap">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-surface2 text-accent"><Briefcase size={16} /></span>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Front Office Hub</div>
+              <div className="text-[11px] text-muted">FA · draft · scouting · trades</div>
+            </div>
+          </Link>
+          <Link href="/trade-center" className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent/40 hover:bg-surface2 tap">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-surface2 text-accent"><ArrowLeftRight size={16} /></span>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Trade Center</div>
+              <div className="text-[11px] text-muted">Offers · build a trade · league log</div>
+            </div>
+          </Link>
+          <Link href="/offseason/free-agency" className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent/40 hover:bg-surface2 tap">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-surface2 text-accent"><ListTree size={16} /></span>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Free Agency</div>
+              <div className="text-[11px] text-muted">Browse the FA market</div>
+            </div>
+          </Link>
+          <Link href="/offseason/draft" className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent/40 hover:bg-surface2 tap">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-surface2 text-accent"><ListTree size={16} /></span>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Draft Board</div>
+              <div className="text-[11px] text-muted">Prospects · combine · scout</div>
+            </div>
+          </Link>
+        </div>
+      </Section>
 
       <Section title="Upcoming">
         {upcomingUserGames.length ? (

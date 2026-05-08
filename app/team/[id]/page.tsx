@@ -11,6 +11,7 @@ import { teamOvr, getRoster } from "@/lib/gen/roster";
 import { currentTeamPayroll } from "@/lib/offseason/freeAgency";
 import { TeamNav } from "@/components/team-nav";
 import { PhilosophyPanel } from "@/components/philosophy-panel";
+import { CoachingStaffPreview } from "@/components/coaching-staff-preview";
 import { Activity } from "lucide-react";
 
 export default function TeamPage({ params }: { params: Promise<{ id: string }> }) {
@@ -47,6 +48,8 @@ export default function TeamPage({ params }: { params: Promise<{ id: string }> }
         <Stat label="Points For" value={standing.pf} hint={`Allowed: ${standing.pa}`} />
         <Stat label="Cap" value={`$${payroll.toFixed(1)}M`} hint={`/ $${team.cap}M`} />
       </div>
+
+      <CoachingStaffPreview teamId={team.id} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Next up">

@@ -8,6 +8,7 @@ import { TeamLogo } from "@/components/team-logo";
 import { gradeColor, cn } from "@/lib/utils";
 import { GROUP_LABEL, GROUP_ORDER, POSITION_GROUP } from "@/lib/data/positions";
 import { getCombine, SCOUT_COST_PER_PROSPECT } from "@/lib/cpu/scouting";
+import { userCan } from "@/lib/cpu/career";
 import { Search, Eye } from "lucide-react";
 
 export default function DraftPage() {
@@ -21,6 +22,8 @@ export default function DraftPage() {
 
   const userTeam = league.userTeam;
   const scoutingPoints = userTeam ? (league.scoutingPoints[userTeam] ?? 0) : 0;
+  const canDraft = userCan(league, "draft");
+  const canScout = userCan(league, "scouting");
 
   const userPicks = league.draftPicks
     .filter((dp) => dp.year === league.year && dp.currentTeam === userTeam && !dp.used)
@@ -127,7 +130,7 @@ export default function DraftPage() {
                     </div>
                   </div>
                   <div className={`font-mono text-base font-bold ${gradeColor(p.scoutGrade)}`}>{p.scoutGrade}</div>
-                  {!scouted && (
+                  {!scouted && canScout && (
                     <button
                       onClick={() => {
                         const r = scout(p.id);
@@ -147,15 +150,16 @@ export default function DraftPage() {
                   )}
                   <button
                     onClick={() => draft(p.id)}
-                    disabled={userPicks.length === 0}
+                    disabled={userPicks.length === 0 || !canDraft}
+                    title={!canDraft ? "Your role doesn't manage the draft" : undefined}
                     className={cn(
                       "rounded-md px-3 py-1.5 text-xs font-bold tap",
-                      userPicks.length === 0
+                      (userPicks.length === 0 || !canDraft)
                         ? "cursor-not-allowed border border-border bg-surface2 text-muted"
                         : "bg-accent text-bg hover:opacity-90",
                     )}
                   >
-                    Draft
+                    {canDraft ? "Draft" : "GM only"}
                   </button>
                 </div>
               </li>

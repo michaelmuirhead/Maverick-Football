@@ -9,6 +9,7 @@ import {
   OFFENSE_EMPHASIS_OPTIONS, DEFENSE_EMPHASIS_OPTIONS, TEMPO_OPTIONS, getGamePlan,
 } from "@/lib/cpu/gamePlan";
 import { staffOf } from "@/lib/cpu/coaches";
+import { userCan } from "@/lib/cpu/career";
 import { getRoster } from "@/lib/gen/roster";
 import { gradeColor, cn } from "@/lib/utils";
 import type { OffenseEmphasis, DefenseEmphasis, TempoChoice } from "@/lib/types";
@@ -142,16 +143,23 @@ export default function GamePlanPage({ params }: { params: Promise<{ id: string 
         </Panel>
       </div>
 
+      {!userCan(league, "gamePlans") && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+          Your Head Coach handles game plans. As <strong>{league.userMode}</strong> you can review the plan but not change it.
+        </div>
+      )}
+
       <div className="sticky bottom-20 z-20 flex justify-end sm:bottom-4">
         <button
           onClick={save}
+          disabled={!userCan(league, "gamePlans")}
           className={cn(
-            "inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-bold shadow-lg tap",
+            "inline-flex items-center gap-2 rounded-md px-5 py-3 text-sm font-bold shadow-lg tap disabled:opacity-40",
             saved ? "bg-emerald-500 text-bg" : "bg-accent text-bg hover:opacity-90",
           )}
         >
           {saved ? <Check size={16} /> : <Save size={16} />}
-          {saved ? "Saved" : "Save game plan"}
+          {saved ? "Saved" : userCan(league, "gamePlans") ? "Save game plan" : "Plan locked"}
         </button>
       </div>
 

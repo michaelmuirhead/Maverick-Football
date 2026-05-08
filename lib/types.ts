@@ -433,6 +433,49 @@ export interface GamePlan {
   byUser: boolean;
 }
 
+// ===== User career (modes: Owner / GM / HC) =====
+
+export type UserMode = "Owner" | "GM" | "HC";
+
+export type UserCareerStatus = "Active" | "OnHotSeat" | "Fired" | "TakingYearOff" | "Retired";
+
+export interface UserCareerStint {
+  team: string;
+  role: UserMode;
+  startYear: number;
+  endYear?: number;            // undefined = current
+  wins: number;
+  losses: number;
+  playoffApps: number;
+  championships: number;
+  awards: string[];
+  fired?: boolean;
+  reason?: string;
+}
+
+export interface UserCareer {
+  mode: UserMode;
+  /** Reputation 40–99 — drives hire chance, salary, expectations. */
+  reputation: number;
+  team: string | null;
+  contractYears: number;
+  contractSalary: number;       // millions
+  status: UserCareerStatus;
+  hotSeatReason?: string;
+  fireYear?: number;
+  stints: UserCareerStint[];
+}
+
+export interface JobOffer {
+  id: string;
+  team: string;
+  role: UserMode;               // "GM" or "HC"
+  years: number;
+  salary: number;               // millions
+  expectations: "WinNow" | "Balanced" | "Rebuild";
+  postedYear: number;
+}
+
 // ===== Coach extensions for mentorship + tenure =====
 
 export interface CoachMentorship {
@@ -543,6 +586,11 @@ export interface League {
   mockDraft?: MockDraft;
   /** Coaching tree mentorships. */
   mentorships: CoachMentorship[];
+  /** User mode and career — Owner, GM, or HC. */
+  userMode?: UserMode;
+  userCareer?: UserCareer;
+  /** Active job offers presented to a fired/free-agent user. */
+  jobOffers: JobOffer[];
   champions: { year: number; team: string; runnerUp: string }[];
   hall: string[];                // player ids in HoF
   // dynasty meta

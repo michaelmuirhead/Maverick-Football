@@ -10,6 +10,7 @@ import { OfferCard } from "@/components/offer-card";
 import { cn } from "@/lib/utils";
 import { ArrowLeftRight, Inbox, History, Loader2, Plus } from "lucide-react";
 import { describeAssets } from "@/lib/cpu/tradeExecute";
+import { userCan } from "@/lib/cpu/career";
 
 type Tab = "inbox" | "build" | "log";
 
@@ -30,6 +31,7 @@ export default function TradeCenterPage() {
   const recent = league.tradeLog.slice(0, 30);
 
   const tradeWindowOpen = (league.phase === "RegularSeason" && league.week <= 9) || league.phase.startsWith("Offseason");
+  const canTrade = userCan(league, "trades");
   const deadlineNote =
     league.phase === "RegularSeason" && league.week > 9 ? "Trade deadline has passed." :
     league.phase === "Playoffs" ? "Trades are not allowed during the playoffs." :
@@ -52,13 +54,19 @@ export default function TradeCenterPage() {
           </div>
           <button
             onClick={async () => { setGenerating(true); await generateUserOffers(2); setGenerating(false); }}
-            disabled={generating || !tradeWindowOpen}
+            disabled={generating || !tradeWindowOpen || !canTrade}
+            title={!canTrade ? "Your role doesn't manage trades" : undefined}
             className="inline-flex items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-xs font-bold text-accent tap hover:bg-accent/20 disabled:opacity-40"
           >
             {generating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Generate offers from CPU
           </button>
         </div>
+        {!canTrade && (
+          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Your General Manager handles trades. As <strong>{league.userMode}</strong> you can review activity but not initiate moves.
+          </div>
+        )}
 
         <nav className="mt-4 flex gap-1">
           <TabBtn active={tab === "inbox"} onClick={() => setTab("inbox")} icon={<Inbox size={14} />}>

@@ -8,6 +8,7 @@ import { TeamLogo } from "@/components/team-logo";
 import { gradeColor, cn } from "@/lib/utils";
 import { GROUP_LABEL, GROUP_ORDER, POSITION_GROUP } from "@/lib/data/positions";
 import { currentTeamPayroll } from "@/lib/offseason/freeAgency";
+import { userCan } from "@/lib/cpu/career";
 
 export default function FreeAgencyPage() {
   const league = useLeague((s) => s.league);
@@ -21,6 +22,7 @@ export default function FreeAgencyPage() {
   const team = TEAMS_BY_ID[league.userTeam];
   const payroll = currentTeamPayroll(league, team.id);
   const cap = team.cap;
+  const canSign = userCan(league, "freeAgency");
 
   const fas = league.freeAgents
     .map((f) => ({ fa: f, p: league.players[f.playerId] }))
@@ -70,15 +72,16 @@ export default function FreeAgencyPage() {
                 <div className={`hidden font-mono text-base font-bold sm:block ${gradeColor(p.ovr)}`}>{p.ovr}</div>
                 <button
                   onClick={() => signFA(team.id, p.id, fa.askYears, fa.askAav)}
-                  disabled={overBudget}
+                  disabled={overBudget || !canSign}
+                  title={!canSign ? "Your role doesn't manage free agency" : undefined}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs font-bold tap",
-                    overBudget
+                    (overBudget || !canSign)
                       ? "cursor-not-allowed border border-border bg-surface2 text-muted"
                       : "bg-accent text-bg hover:opacity-90",
                   )}
                 >
-                  {overBudget ? "No cap" : "Sign"}
+                  {!canSign ? "GM only" : overBudget ? "No cap" : "Sign"}
                 </button>
               </li>
             );
