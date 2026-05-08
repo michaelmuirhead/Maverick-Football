@@ -12,6 +12,7 @@ import {
   baseValueOf, valueOfAssetsTo, pickKeyOf, playerTradeValue, pickTradeValue,
 } from "@/lib/cpu/tradeValue";
 import { evaluateAcceptance } from "@/lib/cpu/tradeAI";
+import { userCan } from "@/lib/cpu/career";
 import { Plus, X, Check, AlertTriangle } from "lucide-react";
 
 interface Props {
@@ -23,6 +24,7 @@ export function TradeBuilder({ league, defaultPartner }: Props) {
   const userTeamId = league.userTeam!;
   const userTeam = TEAMS_BY_ID[userTeamId];
   const propose = useLeague((s) => s.proposeTradeToTeam);
+  const canTrade = userCan(league, "trades");
 
   const [partner, setPartner] = useState<string>(defaultPartner ?? otherTeams(userTeamId)[0]);
   const [give, setGive] = useState<TradeAsset[]>([]);
@@ -137,10 +139,11 @@ export function TradeBuilder({ league, defaultPartner }: Props) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={send}
-            disabled={busy || !give.length || !get.length}
+            disabled={busy || !give.length || !get.length || !canTrade}
+            title={!canTrade ? "Your role doesn't manage trades" : undefined}
             className="rounded-md bg-accent px-4 py-2 text-sm font-bold text-bg tap disabled:opacity-40 hover:opacity-90"
           >
-            Send Offer
+            {canTrade ? "Send Offer" : "Trades restricted"}
           </button>
           <button
             onClick={reset}

@@ -6,6 +6,7 @@ import { TeamLogo } from "./team-logo";
 import { useLeague } from "@/lib/store/league";
 import { describeAsset } from "@/lib/cpu/tradeExecute";
 import { baseValueOf, valueOfAssetsTo } from "@/lib/cpu/tradeValue";
+import { userCan } from "@/lib/cpu/career";
 import { Check, X, ArrowLeftRight } from "lucide-react";
 import { cn, gradeColor } from "@/lib/utils";
 import { useState } from "react";
@@ -73,21 +74,27 @@ export function OfferCard({ league, offer }: { league: League; offer: TradeOffer
       )}
 
       <div className="mt-3 flex gap-2">
-        <button
-          onClick={() => {
-            const r = accept(offer.id);
-            setStatus(r);
-          }}
-          className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-bold text-bg tap hover:opacity-90"
-        >
-          <Check size={12} /> Accept
-        </button>
-        <button
-          onClick={() => reject(offer.id)}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface2 tap"
-        >
-          <X size={12} /> Reject
-        </button>
+        {userCan(league, "trades") ? (
+          <>
+            <button
+              onClick={() => {
+                const r = accept(offer.id);
+                setStatus(r);
+              }}
+              className="inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-bold text-bg tap hover:opacity-90"
+            >
+              <Check size={12} /> Accept
+            </button>
+            <button
+              onClick={() => reject(offer.id)}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface2 tap"
+            >
+              <X size={12} /> Reject
+            </button>
+          </>
+        ) : (
+          <span className="text-[11px] italic text-muted">Your GM is reviewing this offer.</span>
+        )}
       </div>
     </div>
   );

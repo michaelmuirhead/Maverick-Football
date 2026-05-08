@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useLeague } from "@/lib/store/league";
 import { TEAMS_BY_ID } from "@/lib/data/teams";
-import { Save, ArrowLeftRight, FolderOpen } from "lucide-react";
+import { Save, ArrowLeftRight, FolderOpen, Briefcase, Crown, Headphones, AlertTriangle, UserCircle } from "lucide-react";
 
 export function TopBar() {
   const league = useLeague((s) => s.league);
@@ -13,6 +13,11 @@ export function TopBar() {
   const pendingOffers = league?.pendingOffers?.filter(
     (o) => o.status === "pending" && (o.toTeam === league.userTeam || o.fromTeam === league.userTeam),
   ).length ?? 0;
+  const career = league?.userCareer;
+  const mode = league?.userMode ?? "Owner";
+  const onHotSeat = career?.status === "OnHotSeat";
+  const fired = career?.status === "Fired" || career?.status === "TakingYearOff";
+  const ModeIcon = mode === "Owner" ? Crown : mode === "GM" ? Briefcase : Headphones;
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur">
@@ -24,6 +29,14 @@ export function TopBar() {
 
         {league && (
           <div className="ml-auto flex items-center gap-2 text-xs text-muted">
+            <Link
+              href="/front-office"
+              className="hidden items-center gap-1.5 rounded-md border border-border px-2 py-1 hover:bg-surface sm:flex"
+              title="Front Office (FA, draft, scouting)"
+            >
+              <Briefcase size={12} />
+              <span className="text-fg">Front Office</span>
+            </Link>
             <Link
               href="/trade-center"
               className="relative hidden items-center gap-1.5 rounded-md border border-border px-2 py-1 hover:bg-surface sm:flex"
@@ -44,6 +57,26 @@ export function TopBar() {
             >
               <FolderOpen size={12} />
               <span className="text-fg">Saves</span>
+            </Link>
+            <Link
+              href="/career"
+              className={
+                "flex items-center gap-1.5 rounded-md border px-2 py-1 hover:bg-surface " +
+                (onHotSeat ? "border-amber-500/60 bg-amber-500/10 text-amber-200"
+                  : fired ? "border-red-500/60 bg-red-500/10 text-red-200"
+                  : "border-border")
+              }
+              title={career ? `Your career as ${mode}` : "Career"}
+            >
+              <ModeIcon size={12} />
+              <span className="text-fg">{mode}</span>
+              {career && career.mode !== "Owner" && career.team && (
+                <span className="hidden text-[10px] text-muted sm:inline">
+                  · {career.contractYears}y · Rep {career.reputation}
+                </span>
+              )}
+              {onHotSeat && <AlertTriangle size={11} className="text-amber-400" />}
+              {fired && <AlertTriangle size={11} className="text-red-400" />}
             </Link>
             {userTeam && (
               <span

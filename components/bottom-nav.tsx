@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLeague } from "@/lib/store/league";
-import { Home, Trophy, Users, ArrowLeftRight, Newspaper } from "lucide-react";
+import { Home, Trophy, Users, ArrowLeftRight, Briefcase } from "lucide-react";
 
 export function BottomNav() {
   const path = usePathname() ?? "/";
@@ -17,8 +17,8 @@ export function BottomNav() {
     { href: "/", label: "Hub", icon: Home, match: (p: string) => p === "/", badge: 0 },
     { href: "/league/standings", label: "League", icon: Trophy, match: (p: string) => p.startsWith("/league"), badge: 0 },
     { href: userTeam ? `/team/${userTeam}` : "/", label: "My Team", icon: Users, match: (p: string) => p.startsWith("/team"), badge: 0 },
+    { href: "/front-office", label: "Front Office", icon: Briefcase, match: (p: string) => p.startsWith("/front-office") || p.startsWith("/offseason") || p.startsWith("/saves"), badge: 0 },
     { href: "/trade-center", label: "Trades", icon: ArrowLeftRight, match: (p: string) => p.startsWith("/trade"), badge: pendingOffers },
-    { href: "/news", label: "News", icon: Newspaper, match: (p: string) => p.startsWith("/news"), badge: 0 },
   ];
 
   return (
