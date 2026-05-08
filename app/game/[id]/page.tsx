@@ -23,12 +23,20 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         <ScoreBanner home={home} away={away} hs={null} as={null} ot={false} />
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border p-12 text-muted">
           <span>Not played yet.</span>
-          <Link
-            href={`/game/${game.id}/live`}
-            className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-xs font-bold text-bg tap hover:opacity-90"
-          >
-            Watch live play-by-play →
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/game/${game.id}/preview`}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2 text-xs font-bold tap hover:bg-surface2"
+            >
+              View matchup preview
+            </Link>
+            <Link
+              href={`/game/${game.id}/live`}
+              className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-xs font-bold text-bg tap hover:opacity-90"
+            >
+              Watch live play-by-play →
+            </Link>
+          </div>
         </div>
       </div>
     );

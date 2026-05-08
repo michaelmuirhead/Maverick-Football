@@ -6,13 +6,14 @@ import { Empty, Panel, Section, Stat } from "@/components/panels";
 import { TeamLogo } from "@/components/team-logo";
 import { TEAMS_BY_ID } from "@/lib/data/teams";
 import { TradeBuilder } from "@/components/trade-builder";
+import { MultiTeamTrade } from "@/components/multi-team-trade";
 import { OfferCard } from "@/components/offer-card";
 import { cn } from "@/lib/utils";
 import { ArrowLeftRight, Inbox, History, Loader2, Plus } from "lucide-react";
 import { describeAssets } from "@/lib/cpu/tradeExecute";
 import { userCan } from "@/lib/cpu/career";
 
-type Tab = "inbox" | "build" | "log";
+type Tab = "inbox" | "build" | "scenario" | "log";
 
 export default function TradeCenterPage() {
   const league = useLeague((s) => s.league);
@@ -68,12 +69,15 @@ export default function TradeCenterPage() {
           </div>
         )}
 
-        <nav className="mt-4 flex gap-1">
+        <nav className="mt-4 flex flex-wrap gap-1">
           <TabBtn active={tab === "inbox"} onClick={() => setTab("inbox")} icon={<Inbox size={14} />}>
             Inbox{inbox.length > 0 && <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-bg">{inbox.length}</span>}
           </TabBtn>
           <TabBtn active={tab === "build"} onClick={() => setTab("build")} icon={<ArrowLeftRight size={14} />}>
             Build Trade
+          </TabBtn>
+          <TabBtn active={tab === "scenario"} onClick={() => setTab("scenario")} icon={<ArrowLeftRight size={14} />}>
+            Scenario (3-team)
           </TabBtn>
           <TabBtn active={tab === "log"} onClick={() => setTab("log")} icon={<History size={14} />}>
             League Activity
@@ -103,6 +107,15 @@ export default function TradeCenterPage() {
             </div>
           )}
           <TradeBuilder league={league} />
+        </>
+      )}
+
+      {tab === "scenario" && (
+        <>
+          <div className="rounded-md border border-border bg-surface p-3 text-xs text-muted">
+            <strong className="text-fg">Scenario tester</strong> — propose multi-team trades (up to 3 teams). Route each asset to a specific destination, see each team's evaluation, and execute if all sides agree.
+          </div>
+          <MultiTeamTrade league={league} />
         </>
       )}
 

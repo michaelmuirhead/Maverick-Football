@@ -7,6 +7,7 @@ import { GameCard } from "@/components/game-card";
 import { TEAMS_BY_ID } from "@/lib/data/teams";
 import { TeamLogo } from "@/components/team-logo";
 import { computePlayoffSeeds } from "@/lib/sim/season";
+import { PlayoffBracket } from "@/components/playoff-bracket";
 
 export default function PlayoffsPage() {
   const league = useLeague((s) => s.league);
@@ -25,7 +26,11 @@ export default function PlayoffsPage() {
     <div className="space-y-4">
       <LeagueNav />
 
-      <Section title={`Playoff Picture — ${league.year}`}>
+      <Section title={`Playoff Bracket — ${league.year}`}>
+        <PlayoffBracket league={league} />
+      </Section>
+
+      <Section title="Seeds">
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel title="AFC seeds">
             <ul className="divide-y divide-border/60">

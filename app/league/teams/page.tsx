@@ -8,20 +8,29 @@ import { TeamLogo } from "@/components/team-logo";
 import { teamOvr, getRoster } from "@/lib/gen/roster";
 import { staffOf } from "@/lib/cpu/coaches";
 import { gradeColor } from "@/lib/utils";
-import { Users, ListTree, ClipboardList, UserCog } from "lucide-react";
+import { Users, ListTree, ClipboardList, UserCog, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { computePowerRankings, rankingMovement } from "@/lib/cpu/powerRankings";
 
 export default function TeamsPage() {
   const league = useLeague((s) => s.league);
   if (!league) return <Empty>No league yet.</Empty>;
-  const ranked = TEAMS.map((t) => ({ t, ovr: teamOvr(league, t.id) })).sort((a, b) => b.ovr - a.ovr);
+  // Power rankings from snapshot if available, else fallback to OVR sort
+  const rankedIds = (league.powerRankingHistory && league.powerRankingHistory.length > 0)
+    ? league.powerRankingHistory[league.powerRankingHistory.length - 1].rankings
+    : computePowerRankings(league);
+  const movement = rankingMovement(league);
+  const ranked = rankedIds.map((id) => {
+    const t = TEAMS.find((x) => x.id === id);
+    return t ? { t, ovr: teamOvr(league, id), move: movement[id] ?? 0 } : null;
+  }).filter((x): x is { t: typeof TEAMS[0]; ovr: number; move: number } => !!x);
 
   return (
     <div className="space-y-4">
       <LeagueNav />
       <Section title="All 32 Teams — Power Rankings">
-        <p className="text-xs text-muted">Click a team for the full page (overview, roster, depth chart, coaches, practice squad, schedule). Or jump straight in via the quick links.</p>
+        <p className="text-xs text-muted">Click a team for the full page (overview, roster, depth chart, coaches, practice squad, schedule). Arrows show week-over-week movement.</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {ranked.map(({ t, ovr }, i) => {
+          {ranked.map(({ t, ovr, move }, i) => {
             const s = league.standings[t.id];
             const roster = getRoster(league, t.id);
             const stars = roster.filter((p) => p.ovr >= 85).length;
@@ -30,6 +39,7 @@ export default function TeamsPage() {
               <div key={t.id} className="rounded-lg border border-border bg-surface p-3 hover:border-accent/40">
                 <div className="flex items-center gap-3">
                   <span className="grid h-9 w-9 place-items-center rounded-md bg-surface2 font-display text-sm font-bold">{i + 1}</span>
+                  <MovementArrow move={move} />
                   <TeamLogo team={t} size={36} />
                   <div className="min-w-0 flex-1">
                     <Link href={`/team/${t.id}`} className="block truncate font-medium hover:text-accent">{t.city} {t.name}</Link>
@@ -69,5 +79,29 @@ function QuickLink({ href, icon, label }: { href: string; icon: React.ReactNode;
       {icon}
       <span>{label}</span>
     </Link>
+  );
+}
+
+function MovementArrow({ move }: { move: number }) {
+  if (move > 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-emerald-400" title={`Up ${move}`}>
+        <ArrowUp size={12} />
+        <span className="text-[10px] font-mono">{move}</span>
+      </span>
+    );
+  }
+  if (move < 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-red-400" title={`Down ${-move}`}>
+        <ArrowDown size={12} />
+        <span className="text-[10px] font-mono">{-move}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-muted/50" title="No change">
+      <Minus size={12} />
+    </span>
   );
 }

@@ -12,6 +12,8 @@ import { topChemistry } from "@/lib/cpu/chemistry";
 import { suggestedExtensionAav } from "@/lib/cpu/contracts";
 import { labelSeverity } from "@/lib/cpu/injuries";
 import { userCan } from "@/lib/cpu/career";
+import { eligiblePositionChanges } from "@/lib/cpu/rosterOps";
+import { computeTagSalary, tagEligiblePlayers, rfaEligible } from "@/lib/cpu/faExtras";
 import { ArrowDown, Scissors, FileText, RefreshCw, Activity } from "lucide-react";
 
 const ATTR_GROUPS: Record<string, [string, keyof Attributes][]> = {
@@ -213,6 +215,7 @@ function barColor(v: number) {
 }
 
 function ContractActions({ player }: { player: Player }) {
+  const league = useLeague((s) => s.league)!;
   const restructure = useLeague((s) => s.restructure);
   const extend = useLeague((s) => s.extend);
   const cut = useLeague((s) => s.cutPlayer);
@@ -220,11 +223,24 @@ function ContractActions({ player }: { player: Player }) {
   const fromIR = useLeague((s) => s.fromIR);
   const toPS = useLeague((s) => s.toPracticeSquad);
   const fromPS = useLeague((s) => s.fromPracticeSquad);
+  const applyTag = useLeague((s) => s.applyTag);
+  const tenderRfa = useLeague((s) => s.tenderRfa);
+  const changePos = useLeague((s) => s.changePosition);
 
   const [showExtend, setShowExtend] = useState(false);
   const [years, setYears] = useState(3);
   const [aav, setAav] = useState(suggestedExtensionAav(player));
   const [msg, setMsg] = useState<string | null>(null);
+  const [showPosChange, setShowPosChange] = useState(false);
+
+  const tagEligible = player.team
+    ? tagEligiblePlayers(league, player.team).some((p) => p.id === player.id)
+    : false;
+  const isRfa = player.team
+    ? rfaEligible(league, player.team).some((p) => p.id === player.id)
+    : false;
+  const tagSalary = tagEligible ? computeTagSalary(league, player) : 0;
+  const posOptions = eligiblePositionChanges(player);
 
   const c = player.contract;
 
@@ -297,7 +313,50 @@ function ContractActions({ player }: { player: Player }) {
                 Promote from PS
               </button>
             )}
+            {tagEligible && (
+              <button onClick={() => { const r = applyTag(player.id); setMsg(r.ok ? `Franchise tagged — $${r.salary?.toFixed(1)}M / 1yr` : `Failed: ${r.reason}`); }}
+                className="inline-flex items-center gap-1 rounded-md border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-1.5 text-xs text-fuchsia-300 hover:bg-fuchsia-500/20">
+                Franchise tag · ${tagSalary.toFixed(1)}M
+              </button>
+            )}
+            {isRfa && (
+              <>
+                <button onClick={() => { const r = tenderRfa(player.id, "second"); setMsg(r.ok ? "Tendered (2nd-round)" : `Failed: ${r.reason}`); }}
+                  className="inline-flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/20">
+                  RFA tender (2nd)
+                </button>
+                <button onClick={() => { const r = tenderRfa(player.id, "first"); setMsg(r.ok ? "Tendered (1st-round)" : `Failed: ${r.reason}`); }}
+                  className="inline-flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/20">
+                  RFA tender (1st)
+                </button>
+              </>
+            )}
+            {posOptions.length > 0 && (
+              <button onClick={() => setShowPosChange((v) => !v)}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface2">
+                Change position
+              </button>
+            )}
           </div>
+
+          {showPosChange && posOptions.length > 0 && (
+            <div className="rounded-md border border-border bg-bg p-3 text-xs">
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-muted">Move {player.firstName} {player.lastName} to:</div>
+              <div className="flex flex-wrap gap-1">
+                {posOptions.map((np) => (
+                  <button key={np}
+                    onClick={() => {
+                      const r = changePos(player.id, np);
+                      setMsg(r.ok ? `Moved to ${np} (OVR ${r.oldOvr} → ${r.newOvr})` : `Failed: ${r.reason}`);
+                      if (r.ok) setShowPosChange(false);
+                    }}
+                    className="rounded-md border border-border bg-surface px-2 py-1 text-[11px] hover:bg-surface2">
+                    {np}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {showExtend && (
             <div className="rounded-md border border-border bg-bg p-3 text-xs">

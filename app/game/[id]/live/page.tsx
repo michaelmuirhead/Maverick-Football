@@ -9,8 +9,11 @@ import { Empty, Panel, Section } from "@/components/panels";
 import { FieldView } from "@/components/field-view";
 import { createLiveGame, type LiveEvent } from "@/lib/sim/livePlayByPlay";
 import type { GameResult } from "@/lib/types";
-import { Pause, Play, FastForward, SkipForward, ChevronRight, Loader2 } from "lucide-react";
+import { Pause, Play, FastForward, SkipForward, ChevronRight, Loader2, Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OFFENSE_EMPHASIS_OPTIONS, DEFENSE_EMPHASIS_OPTIONS, TEMPO_OPTIONS, getGamePlan } from "@/lib/cpu/gamePlan";
+import type { OffenseEmphasis, DefenseEmphasis, TempoChoice } from "@/lib/types";
+import { userCan } from "@/lib/cpu/career";
 
 const SPEED_MS: Record<string, number> = {
   "0.5x": 2400,
@@ -26,6 +29,7 @@ export default function LiveGamePage({ params }: { params: Promise<{ id: string 
   const finalize = useLeague((s) => s.finalizeLiveGame);
 
   const game = league?.schedule.find((g) => g.id === id);
+  const setGamePlan = useLeague((s) => s.setGamePlanForGame);
 
   // Generator + event log
   const genRef = useRef<Generator<LiveEvent, GameResult, void> | null>(null);
@@ -34,6 +38,7 @@ export default function LiveGamePage({ params }: { params: Promise<{ id: string 
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<keyof typeof SPEED_MS>("1x");
   const [skipping, setSkipping] = useState(false);
+  const [showAdjust, setShowAdjust] = useState(false);
   const finalizedRef = useRef(false);
 
   // Init generator once when league + game ready
@@ -178,7 +183,31 @@ export default function LiveGamePage({ params }: { params: Promise<{ id: string 
             {skipping ? <Loader2 size={14} className="animate-spin" /> : <SkipForward size={14} />}
             Skip to end
           </button>
+          {league && userCan(league, "gamePlans") && (game.home === league.userTeam || game.away === league.userTeam) && (
+            <button
+              onClick={() => { setPlaying(false); setShowAdjust((v) => !v); }}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium tap",
+                showAdjust ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface hover:bg-surface2",
+              )}
+            >
+              <Sliders size={14} /> Adjust
+            </button>
+          )}
         </div>
+      )}
+
+      {showAdjust && league && (
+        <HalftimeAdjustPanel
+          league={league}
+          gameId={game.id}
+          onSave={(plan) => {
+            setGamePlan(game.id, plan);
+            setShowAdjust(false);
+            setPlaying(true);
+          }}
+          onCancel={() => setShowAdjust(false)}
+        />
       )}
 
       {done && (
@@ -230,4 +259,81 @@ function formatClock(sec: number) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function HalftimeAdjustPanel({
+  league, gameId, onSave, onCancel,
+}: {
+  league: import("@/lib/types").League;
+  gameId: string;
+  onSave: (plan: { offEmphasis: OffenseEmphasis; defEmphasis: DefenseEmphasis; tempo: TempoChoice }) => void;
+  onCancel: () => void;
+}) {
+  const userTeam = league.userTeam!;
+  const existing = getGamePlan(league, gameId, userTeam);
+  const [off, setOff] = useState<OffenseEmphasis>(existing?.offEmphasis ?? "Balanced");
+  const [def, setDef] = useState<DefenseEmphasis>(existing?.defEmphasis ?? "Balanced");
+  const [tempo, setTempo] = useState<TempoChoice>(existing?.tempo ?? "Balanced");
+
+  return (
+    <div className="rounded-lg border border-accent/30 bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-accent">Halftime adjustments</h3>
+        <span className="text-[10px] text-muted">Takes effect immediately</span>
+      </div>
+      <div className="space-y-3">
+        <Group label="Offense">
+          {OFFENSE_EMPHASIS_OPTIONS.map((o) => (
+            <PillBtn key={o.id} active={off === o.id} onClick={() => setOff(o.id)}>{o.label}</PillBtn>
+          ))}
+        </Group>
+        <Group label="Defense">
+          {DEFENSE_EMPHASIS_OPTIONS.map((o) => (
+            <PillBtn key={o.id} active={def === o.id} onClick={() => setDef(o.id)}>{o.label}</PillBtn>
+          ))}
+        </Group>
+        <Group label="Tempo">
+          {TEMPO_OPTIONS.map((o) => (
+            <PillBtn key={o.id} active={tempo === o.id} onClick={() => setTempo(o.id)}>{o.label}</PillBtn>
+          ))}
+        </Group>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => onSave({ offEmphasis: off, defEmphasis: def, tempo })}
+          className="rounded-md bg-accent px-3 py-1.5 text-xs font-bold text-bg hover:opacity-90"
+        >
+          Save & resume
+        </button>
+        <button
+          onClick={onCancel}
+          className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface2"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Group({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] uppercase tracking-wider text-muted">{label}</div>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+}
+function PillBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "rounded-md border px-2.5 py-1 text-xs tap",
+        active ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface hover:bg-surface2 text-muted",
+      )}
+    >
+      {children}
+    </button>
+  );
 }
