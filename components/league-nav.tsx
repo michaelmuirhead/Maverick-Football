@@ -13,6 +13,10 @@ export function LeagueNav() {
     { href: "/league/teams", label: "Teams" },
     { href: "/league/records", label: "Records" },
     { href: "/league/coaching-tree", label: "Coach Trees" },
+    { href: "/league/all-decade", label: "All-Decade" },
+    { href: "/league/comp-picks", label: "Comp Picks" },
+    { href: "/achievements", label: "Achievements" },
+    { href: "/press", label: "Press" },
     { href: "/hall-of-fame", label: "Hall of Fame" },
   ];
   return (

@@ -12,6 +12,9 @@ export function TeamNav({ teamId }: { teamId: string }) {
     { href: `/team/${teamId}/practice-squad`, label: "Practice Squad" },
     { href: `/team/${teamId}/coaches`, label: "Coaches" },
     { href: `/team/${teamId}/schedule`, label: "Schedule" },
+    { href: `/team/${teamId}/stadium`, label: "Stadium" },
+    { href: `/team/${teamId}/finances`, label: "Finances" },
+    { href: `/team/${teamId}/edit`, label: "Edit" },
   ];
   return (
     <nav className="scrollbar-thin -mx-3 flex gap-1 overflow-x-auto px-3 sm:mx-0 sm:px-0">

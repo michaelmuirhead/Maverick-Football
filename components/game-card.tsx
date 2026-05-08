@@ -60,13 +60,23 @@ export function GameCard({ game, accent }: { game: Game; accent?: string }) {
         )}
       </Link>
       {!game.played && (
-        <Link
-          href={`/game/${game.id}/live`}
-          className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent hover:bg-accent/20 tap"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Tv size={11} /> Watch
-        </Link>
+        <div className="absolute right-2 top-2 flex gap-1">
+          <Link
+            href={`/game/${game.id}/preview`}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 text-[10px] font-bold text-muted hover:bg-surface2 hover:text-fg tap"
+            onClick={(e) => e.stopPropagation()}
+            title="Game preview"
+          >
+            Preview
+          </Link>
+          <Link
+            href={`/game/${game.id}/live`}
+            className="inline-flex items-center gap-1 rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent hover:bg-accent/20 tap"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Tv size={11} /> Watch
+          </Link>
+        </div>
       )}
     </div>
   );
