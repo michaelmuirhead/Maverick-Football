@@ -1,0 +1,55 @@
+// Generated player name pools — fictional players, common names. No real-person reference intended.
+
+export const FIRST_NAMES = [
+  "James","John","Robert","Michael","William","David","Richard","Joseph","Thomas","Charles",
+  "Christopher","Daniel","Matthew","Anthony","Mark","Donald","Steven","Paul","Andrew","Joshua",
+  "Kenneth","Kevin","Brian","George","Edward","Ronald","Timothy","Jason","Jeffrey","Ryan",
+  "Jacob","Gary","Nicholas","Eric","Jonathan","Stephen","Larry","Justin","Scott","Brandon",
+  "Frank","Benjamin","Gregory","Samuel","Raymond","Patrick","Alexander","Jack","Dennis","Jerry",
+  "Tyler","Aaron","Henry","Jose","Adam","Douglas","Nathan","Peter","Zachary","Kyle",
+  "Walter","Harold","Jeremy","Ethan","Carl","Keith","Roger","Gerald","Christian","Terry",
+  "Sean","Austin","Arthur","Lawrence","Jesse","Dylan","Bryan","Joe","Jordan","Billy",
+  "Bruce","Albert","Willie","Gabriel","Logan","Alan","Juan","Wayne","Roy","Ralph",
+  "Randy","Eugene","Vincent","Russell","Louis","Bobby","Philip","Johnny","Trevor","Curtis",
+  "DeAndre","Dameon","Marcus","Malik","Jamal","Tyrell","Jaylen","Trey","Devin","Kobe",
+  "Quentin","Damarius","Tariq","Khalil","Najee","Donovan","Isaiah","Elijah","Caleb","Cole",
+  "Jaxon","Hunter","Bryce","Maddox","Knox","Wyatt","Asher","Beau","Easton","Levi",
+  "Diego","Mateo","Santiago","Sebastian","Mauricio","Rafael","Andres","Esteban","Cruz","Hugo",
+  "Akira","Ren","Kai","Tatsuo","Hideo","Tomas","Lukas","Bjorn","Soren","Magnus",
+  "Jermaine","Tre","Quincy","Reggie","Deon","Lamar","Antonio","Cedric","Marquise","Kameron",
+];
+
+export const LAST_NAMES = [
+  "Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez",
+  "Hernandez","Lopez","Gonzalez","Wilson","Anderson","Thomas","Taylor","Moore","Jackson","Martin",
+  "Lee","Perez","Thompson","White","Harris","Sanchez","Clark","Ramirez","Lewis","Robinson",
+  "Walker","Young","Allen","King","Wright","Scott","Torres","Nguyen","Hill","Flores",
+  "Green","Adams","Nelson","Baker","Hall","Rivera","Campbell","Mitchell","Carter","Roberts",
+  "Gomez","Phillips","Evans","Turner","Diaz","Parker","Cruz","Edwards","Collins","Reyes",
+  "Stewart","Morris","Morales","Murphy","Cook","Rogers","Gutierrez","Ortiz","Morgan","Cooper",
+  "Peterson","Bailey","Reed","Kelly","Howard","Ramos","Kim","Cox","Ward","Richardson",
+  "Watson","Brooks","Chavez","Wood","James","Bennett","Gray","Mendoza","Ruiz","Hughes",
+  "Price","Alvarez","Castillo","Sanders","Patel","Myers","Long","Ross","Foster","Jimenez",
+  "Powell","Jenkins","Perry","Russell","Sullivan","Bell","Coleman","Butler","Henderson","Barnes",
+  "Gonzales","Fisher","Vasquez","Simmons","Romero","Jordan","Patterson","Alexander","Hamilton","Graham",
+  "Reynolds","Griffin","Wallace","Moreno","West","Cole","Hayes","Bryant","Herrera","Gibson",
+  "Ellis","Tran","Medina","Aguilar","Stevens","Murray","Ford","Castro","Marshall","Owens",
+  "Harrison","Fernandez","McDonald","Woods","Washington","Kennedy","Wells","Vargas","Henry","Chen",
+  "Freeman","Webb","Tucker","Guzman","Burns","Crawford","Olson","Simpson","Porter","Hunter",
+];
+
+export const HOMETOWN_CITIES = [
+  "Atlanta, GA","Houston, TX","Dallas, TX","Los Angeles, CA","Miami, FL","Tampa, FL","Orlando, FL",
+  "Chicago, IL","Detroit, MI","Cleveland, OH","Columbus, OH","Pittsburgh, PA","Philadelphia, PA",
+  "Newark, NJ","Brooklyn, NY","Bronx, NY","Boston, MA","Washington, DC","Baltimore, MD",
+  "Charlotte, NC","Raleigh, NC","Memphis, TN","Nashville, TN","New Orleans, LA","Mobile, AL",
+  "Birmingham, AL","Jackson, MS","Little Rock, AR","St. Louis, MO","Kansas City, MO","Omaha, NE",
+  "Minneapolis, MN","Milwaukee, WI","Indianapolis, IN","Louisville, KY","Cincinnati, OH",
+  "Phoenix, AZ","Tucson, AZ","Denver, CO","Salt Lake City, UT","Las Vegas, NV","San Diego, CA",
+  "Long Beach, CA","Oakland, CA","Sacramento, CA","Fresno, CA","Portland, OR","Seattle, WA",
+  "Spokane, WA","Honolulu, HI","Anchorage, AK","San Antonio, TX","Austin, TX","El Paso, TX",
+  "Fort Worth, TX","Lubbock, TX","Toledo, OH","Akron, OH","Buffalo, NY","Rochester, NY",
+  "Hartford, CT","Providence, RI","Albuquerque, NM","Boise, ID","Fargo, ND","Sioux Falls, SD",
+  "Lansing, MI","Grand Rapids, MI","Madison, WI","Des Moines, IA","Wichita, KS","Tulsa, OK",
+  "Oklahoma City, OK","Shreveport, LA","Baton Rouge, LA","Tallahassee, FL","Jacksonville, FL",
+];
