@@ -1,6 +1,7 @@
 import { RNG } from "@/lib/rng";
 import type { Game, Injury, InjurySeverity, League, Player } from "@/lib/types";
 import { TEAMS_BY_ID } from "@/lib/data/teams";
+import { aggregateRuleEffects } from "./milestones";
 
 // =====================================================================
 // Typed injury system. Each injury has a name, severity tier, and
@@ -104,6 +105,9 @@ export function labelSeverity(s: InjurySeverity): string {
  */
 export function rollGameInjuries(league: League, game: Game) {
   const rng = new RNG(`inj:${game.id}`);
+  const ruleFx = aggregateRuleEffects(league);
+  // Rule effects can suppress (or amplify) injury rates league-wide.
+  const injuryRate = Math.max(0.04, 0.18 * (1 + ruleFx.injuryRateMod));
   for (const teamId of [game.home, game.away]) {
     const roster = Object.values(league.players).filter(
       (p) => p.team === teamId && !p.retired && !p.injury && !p.onIR && !p.onPracticeSquad,
@@ -111,15 +115,13 @@ export function rollGameInjuries(league: League, game: Game) {
     // Up to two injuries per team per game (most are minor)
     const tries = 2;
     for (let i = 0; i < tries; i++) {
-      // Pick a player weighted toward starters
       const candidates = roster
         .filter((p) => !p.injury)
         .map((p) => ({
           p, w: p.depth === "Starter" ? 6 : p.depth === "Backup" ? 2 : 0.6,
         }));
       if (candidates.length === 0) break;
-      // Per-attempt injury chance
-      if (!rng.chance(0.18)) continue;
+      if (!rng.chance(injuryRate)) continue;
       const pick = rng.weighted(candidates, candidates.map((c) => c.w)).p;
       const injury = rollInjuryForPlayer(league, game, pick, rng);
       if (injury) applyInjury(league, pick, injury);

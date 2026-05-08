@@ -169,12 +169,26 @@ function runBiddingRound(league: League, rng: RNG, round: number): number {
   return signedThisRound;
 }
 
+/**
+ * Total cap charge for `teamId` in the current league year. Includes:
+ *  - Active contract AAVs
+ *  - Current-year dead cap entries (cuts) — positive
+ *  - Current-year cap shifts (restructures) — can be negative (year-1 relief)
+ *
+ * This is the single source of truth for cap math across FA, trades, UI.
+ */
 export function currentTeamPayroll(league: League, teamId: string): number {
   let total = 0;
   for (const p of Object.values(league.players)) {
     if (p.team === teamId && p.contract) total += p.contract.aav;
   }
-  return total;
+  if (league.deadCap?.[teamId]) {
+    for (const d of league.deadCap[teamId]) {
+      if (d.year === league.year) total += d.amount;
+    }
+  }
+  // Round to 0.1M and floor at 0 (negative payroll would be a display bug)
+  return Math.max(0, Math.round(total * 10) / 10);
 }
 
 /** Legacy helper for older callers: position-need scoring kept for backward compat. */

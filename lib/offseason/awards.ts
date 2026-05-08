@@ -105,5 +105,66 @@ export function pickAwards(league: League): Award[] {
     }
   }
 
+  // Comeback Player of the Year — biggest OVR rebound after a major injury or down year
+  const cbpoy = [...players].filter((p) => {
+    // Player who had season-ending injury LAST year (legacy injuryWeeks signal)
+    const lastSeason = p.history.find((h) => h.year === yr - 1);
+    const hadDownYear = lastSeason && (lastSeason.gp ?? 0) <= 8;
+    return hadDownYear && offScore(p) > 60;
+  }).sort((a, b) => offScore(b) - offScore(a))[0];
+  if (cbpoy) {
+    awards.push({ year: yr, type: "CBPOY", playerId: cbpoy.id, team: cbpoy.team!, position: cbpoy.position });
+    league.news.unshift({
+      id: `cbpoy${yr}`, year: yr, week: 0, ts: Date.now(), category: "Award",
+      headline: `${cbpoy.firstName} ${cbpoy.lastName} (${cbpoy.position}) named ${yr} Comeback Player of the Year`,
+      playerId: cbpoy.id, teamId: cbpoy.team!,
+    });
+  }
+
+  // Special Teams Player of the Year — best K or P
+  const specialists = players.filter((p) => p.position === "K" || p.position === "P");
+  const stpoy = specialists
+    .map((p) => {
+      const r = statRow(p, yr);
+      const score = ((r?.fgm ?? 0) * 3 + (r?.xpm ?? 0) * 1) - ((r?.fga ?? 0) - (r?.fgm ?? 0)) * 1.5;
+      return { p, score };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+  if (stpoy && stpoy.p) {
+    awards.push({ year: yr, type: "STPOY", playerId: stpoy.p.id, team: stpoy.p.team!, position: stpoy.p.position });
+    league.news.unshift({
+      id: `stpoy${yr}`, year: yr, week: 0, ts: Date.now(), category: "Award",
+      headline: `${stpoy.p.firstName} ${stpoy.p.lastName} (${stpoy.p.position}) named ${yr} Special Teams Player of the Year`,
+      playerId: stpoy.p.id, teamId: stpoy.p.team!,
+    });
+  }
+
+  // OL Player of the Year — best by OVR among All-Pro OL players (proxy: 88+ OVR + Pro Bowl)
+  const olCandidates = players
+    .filter((p) => ["LT", "LG", "C", "RG", "RT"].includes(p.position) && statRow(p, yr)?.proBowl)
+    .sort((a, b) => b.ovr - a.ovr);
+  const olpoy = olCandidates[0];
+  if (olpoy) {
+    awards.push({ year: yr, type: "OLPOY", playerId: olpoy.id, team: olpoy.team!, position: olpoy.position });
+    league.news.unshift({
+      id: `olpoy${yr}`, year: yr, week: 0, ts: Date.now(), category: "Award",
+      headline: `${olpoy.firstName} ${olpoy.lastName} (${olpoy.position}) named ${yr} Offensive Lineman of the Year`,
+      playerId: olpoy.id, teamId: olpoy.team!,
+    });
+  }
+
+  // Walter Payton-style Citizenship Award — vet with 8+ seasons + Pro Bowl this year
+  const citizenship = players
+    .filter((p) => p.history.length >= 8 && statRow(p, yr)?.proBowl && !awards.some((a) => a.playerId === p.id && a.type === "MVP"))
+    .sort((a, b) => b.history.length - a.history.length)[0];
+  if (citizenship) {
+    awards.push({ year: yr, type: "Citizenship", playerId: citizenship.id, team: citizenship.team!, position: citizenship.position });
+    league.news.unshift({
+      id: `cit${yr}`, year: yr, week: 0, ts: Date.now(), category: "Award",
+      headline: `${citizenship.firstName} ${citizenship.lastName} (${citizenship.position}) wins ${yr} Walter Payton Award for community impact`,
+      playerId: citizenship.id, teamId: citizenship.team!,
+    });
+  }
+
   return awards;
 }

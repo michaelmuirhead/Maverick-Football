@@ -255,7 +255,9 @@ export interface StandingsRow {
 
 export interface Award {
   year: number;
-  type: "MVP" | "OPOY" | "DPOY" | "OROY" | "DROY" | "COY" | "SBMVP" | "ProBowl" | "AllPro1" | "AllPro2";
+  type: "MVP" | "OPOY" | "DPOY" | "OROY" | "DROY" | "COY" | "SBMVP"
+       | "ProBowl" | "AllPro1" | "AllPro2"
+       | "CBPOY" | "STPOY" | "OLPOY" | "Citizenship";
   /** For player awards. For COY this is empty / unused. */
   playerId: string;
   team: string;
@@ -285,7 +287,9 @@ export type Phase =
   | "Offseason:Progression"
   | "Offseason:FreeAgency"
   | "Offseason:Draft"
-  | "Offseason:Done";
+  | "Offseason:Done"
+  | "Offseason:Tag"
+  | "Offseason:Preseason";
 
 export interface DraftPick {
   year: number;
@@ -295,6 +299,7 @@ export interface DraftPick {
   currentTeam: string;
   used?: boolean;
   playerId?: string;
+  compensatory?: boolean;
 }
 
 export interface DraftProspect extends Player {
@@ -476,6 +481,188 @@ export interface JobOffer {
   postedYear: number;
 }
 
+// ===== Compensatory picks, franchise tag, RFA =====
+
+export interface CompPickAward {
+  year: number;
+  team: string;
+  round: number;             // 3-7
+  rationale: string;
+}
+
+export interface FranchiseTag {
+  team: string;
+  playerId: string;
+  year: number;
+  salary: number;
+}
+
+export type RfaTenderLevel = "first" | "second" | "original" | "right-of-first-refusal";
+
+export interface RfaTender {
+  playerId: string;
+  team: string;
+  level: RfaTenderLevel;
+  salary: number;
+  year: number;
+}
+
+// ===== Preseason =====
+
+export interface CampNote {
+  id: string;
+  playerId: string;
+  team: string;
+  text: string;
+  ovrChange?: number;
+}
+
+// ===== Achievements =====
+
+export interface Achievement {
+  id: string;            // "first_championship", "three_peat", etc.
+  unlockedYear: number;
+  category: "Championship" | "Career" | "Season" | "Streak" | "Roster";
+  title: string;
+  detail?: string;
+  teamId?: string;
+  playerId?: string;
+}
+
+// ===== All-Decade teams =====
+
+export interface AllDecadeSlot {
+  position: Position;
+  playerId: string;
+}
+
+export interface AllDecadeTeam {
+  decade: number;            // start year (e.g. 2030)
+  endYear: number;
+  slots: AllDecadeSlot[];
+  awarded: number;           // year the team was named
+}
+
+// ===== CBA events =====
+
+export interface CbaEvent {
+  year: number;
+  type: "CapStructure" | "ScheduleFormat" | "DraftFormat" | "RookieScale" | "RuleChange" | "Other";
+  summary: string;
+  effect?: {
+    capInflationDelta?: number;
+    rosterCapDelta?: number;
+    /** Rule-change effects that ripple into the sim. */
+    completionMultGlobal?: number;
+    bigPlayRateMod?: number;
+    injuryRateMod?: number;
+    fgRangeBonus?: number;
+    rushYpcMult?: number;
+    durationYears?: number;     // how long the rule effect lasts
+  };
+}
+
+// ===== Stadium upgrades + branding overrides =====
+
+export interface StadiumState {
+  team: string;
+  hfa: number;             // 0-5; mirrors team.hfa as upgradable
+  upgradeYear?: number;
+}
+
+export interface BrandingOverride {
+  team: string;
+  city?: string;
+  name?: string;
+  primary?: string;
+  secondary?: string;
+  stadium?: string;
+}
+
+// ===== Coach contracts (extending existing Coach) =====
+
+export interface CoachContract {
+  coachId: string;
+  team: string;
+  years: number;
+  salary: number;
+  signedYear: number;
+}
+
+// ===== Power rankings movement =====
+
+export interface PowerRankSnapshot {
+  year: number;
+  week: number;
+  rankings: string[];      // ordered team ids
+}
+
+// ===== Owner finances =====
+
+export interface FinancesEntry {
+  year: number;
+  ticketRevenue: number;
+  jerseyRevenue: number;
+  tvDealRevenue: number;
+  sponsorRevenue: number;
+  payrollExpense: number;
+  staffExpense: number;
+  facilitiesExpense: number;
+  net: number;
+}
+
+export interface TeamFinances {
+  teamId: string;
+  totalProfit: number;
+  history: FinancesEntry[];
+}
+
+// ===== Press conference items =====
+
+export type PressEventKind =
+  | "PostGameWin" | "PostGameLoss"
+  | "BigTrade" | "BigSigning" | "DraftDay" | "Hire" | "Fire"
+  | "Championship" | "BadSeason" | "RookieDebut" | "MilestoneRecord";
+
+export interface PressItem {
+  id: string;
+  year: number;
+  week: number;
+  ts: number;
+  kind: PressEventKind;
+  speaker: string;       // person's name
+  speakerRole: "HC" | "GM" | "Owner" | "Player" | "Reporter";
+  team?: string;
+  quote: string;
+  context?: string;      // e.g. "After 28-21 win over BUF"
+}
+
+// ===== Multi-team trade machine =====
+
+export interface MultiTeamTradeLeg {
+  teamId: string;
+  giving: TradeAsset[];
+  receiving: TradeAsset[];   // computed from other legs
+}
+
+export interface MultiTeamTrade {
+  legs: MultiTeamTradeLeg[];
+  byUser: boolean;
+}
+
+// ===== CBA mechanical effects =====
+
+export interface CbaEffect {
+  capInflationDelta?: number;     // one-time multiplier on capInflation
+  completionMultGlobal?: number;  // bumps completion (e.g. defensive holding rule)
+  bigPlayRateMod?: number;        // adjusts big-play probability
+  injuryRateMod?: number;         // -0.20 = 20% fewer injuries
+  fgRangeBonus?: number;          // -3 = effectively 3 yds shorter FGs
+  rushYpcMult?: number;
+  durationYears?: number;         // how long the effect persists
+  appliedYear?: number;
+}
+
 // ===== Coach extensions for mentorship + tenure =====
 
 export interface CoachMentorship {
@@ -591,6 +778,36 @@ export interface League {
   userCareer?: UserCareer;
   /** Active job offers presented to a fired/free-agent user. */
   jobOffers: JobOffer[];
+  /** Comp picks awarded based on FA gains/losses. */
+  compPicks: CompPickAward[];
+  /** Active franchise tags this offseason. */
+  franchiseTags: FranchiseTag[];
+  /** Restricted FA tenders. */
+  rfaTenders: RfaTender[];
+  /** Camp notes from preseason. */
+  preseasonNotes: CampNote[];
+  /** Dynasty achievements unlocked. */
+  achievements: Achievement[];
+  /** All-decade teams named every 10 years. */
+  allDecadeTeams: AllDecadeTeam[];
+  /** CBA / rule events that have fired. */
+  cbaEvents: CbaEvent[];
+  /** Stadium upgrade state per team. */
+  stadiumStates: Record<string, StadiumState>;
+  /** User branding overrides. */
+  brandingOverrides: Record<string, BrandingOverride>;
+  /** Coach contracts (keyed by coachId). */
+  coachContracts: Record<string, CoachContract>;
+  /** Snapshots of weekly power rankings for movement arrows. */
+  powerRankingHistory: PowerRankSnapshot[];
+  /** Year-over-year cap inflation factor; multiplies team.cap. */
+  capInflation: number;
+  /** Per-team finances tracker (Owner-mode visibility). */
+  finances: Record<string, TeamFinances>;
+  /** Press conference feed (separate from news). */
+  press: PressItem[];
+  /** Currently active rule-change effects from CBA events. */
+  activeRuleEffects: CbaEffect[];
   champions: { year: number; team: string; runnerUp: string }[];
   hall: string[];                // player ids in HoF
   // dynasty meta

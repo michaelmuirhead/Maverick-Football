@@ -6,6 +6,7 @@ import { personalityFor } from "@/lib/cpu/personalities";
 import { offensiveMods, defensiveMods, ensureGamePlan, type CoachingMods } from "@/lib/cpu/gamePlan";
 import { rollWeather, weatherModifiers, hfaBoost } from "@/lib/cpu/weather";
 import { chemistryActiveBonus } from "@/lib/cpu/chemistry";
+import { aggregateRuleEffects } from "@/lib/cpu/milestones";
 import { clamp } from "@/lib/utils";
 
 // =====================================================================
@@ -60,24 +61,22 @@ interface InternalState extends LiveGameState {
   driveScorerId?: string;
   homeTeamId: string;
   awayTeamId: string;
+  gameId: string;
   league: League;
   weather?: Weather;
   weatherMods: ReturnType<typeof weatherModifiers>;
   homeHfa: number;
-  // cached coaching modifiers per side
-  homeOffMods: CoachingMods;
-  homeDefMods: CoachingMods;
-  awayOffMods: CoachingMods;
-  awayDefMods: CoachingMods;
   twoMinAnnounced?: boolean;
   _otSuddenDeath?: boolean;
 }
 
+// Read mods on-demand from league.gamePlans so halftime adjustments
+// take effect immediately without restarting the game.
 function offModsFor(state: InternalState, teamId: string): CoachingMods {
-  return teamId === state.homeTeamId ? state.homeOffMods : state.awayOffMods;
+  return offensiveMods(state.league, teamId, state.gameId);
 }
 function defModsFor(state: InternalState, teamId: string): CoachingMods {
-  return teamId === state.homeTeamId ? state.homeDefMods : state.awayDefMods;
+  return defensiveMods(state.league, teamId, state.gameId);
 }
 
 const QUARTER_SEC = 15 * 60;
@@ -102,12 +101,6 @@ function* liveGen(league: League, game: Game, rngSeed: string): Generator<LiveEv
   const weather = rollWeather(league, game);
   const weatherMods = weatherModifiers(weather);
   const homeHfa = hfaBoost(homeT);
-
-  // Cache coaching mods (personality + coach + game plan) for both sides
-  const homeOffMods = offensiveMods(league, homeT.id, game.id);
-  const homeDefMods = defensiveMods(league, homeT.id, game.id);
-  const awayOffMods = offensiveMods(league, awayT.id, game.id);
-  const awayDefMods = defensiveMods(league, awayT.id, game.id);
 
   // Coin toss — winner receives second half by tradition; we'll keep simple
   const homeReceivesFirst = rng.chance(0.5);
@@ -139,11 +132,11 @@ function* liveGen(league: League, game: Game, rngSeed: string): Generator<LiveEv
     driveStartPossession: homeReceivesFirst ? homeT.id : awayT.id,
     homeTeamId: homeT.id,
     awayTeamId: awayT.id,
+    gameId: game.id,
     league,
     weather,
     weatherMods,
     homeHfa,
-    homeOffMods, homeDefMods, awayOffMods, awayDefMods,
   };
 
   yield event(state, "kickoff", `${TEAMS_BY_ID[state.possession].name} receive the opening kickoff. Ball at the ${state.ballYL}-yard line.`, true);
@@ -392,15 +385,17 @@ function* passPlay(
   recBox.tgt = (recBox.tgt ?? 0) + 1;
   qbBox.passAtt = (qbBox.passAtt ?? 0) + 1;
 
-  // Completion chance — coaches + weather + chemistry on both sides
+  // Completion chance — coaches + weather + chemistry + active rule effects
+  const ruleFx = aggregateRuleEffects(state.league);
   const catchPRaw = 0.55 + (off.qb + off.wr - def.db) * 0.005;
   const chemistry = chemistryActiveBonus(state.league, qbId, target.id);
   const weatherCatchPenalty = state.weatherMods.passYdsMult < 1
     ? (1 - state.weatherMods.passYdsMult) * 0.4
     : 0;
   const catchP = clamp(
-    catchPRaw * (oMods.completionMult / dMods.completionMult) + chemistry - weatherCatchPenalty,
-    0.20, 0.92,
+    catchPRaw * (oMods.completionMult / dMods.completionMult) * ruleFx.completionMultGlobal
+      + chemistry - weatherCatchPenalty,
+    0.20, 0.94,
   );
   const completed = rng.chance(catchP);
   if (!completed) {
@@ -414,10 +409,10 @@ function* passPlay(
     return;
   }
 
-  // Yards on completion — big play chance modded by both sides + weather suppression
+  // Yards on completion — big play chance modded by both sides + weather + rule effects
   const baseYds = clamp(Math.round(rng.normal(7.6, 4) * state.weatherMods.passYdsMult), -2, 25);
   const bigPlayChance = clamp(
-    (0.07 + oMods.bigPlayBonus + dMods.bigPlayConcedeBonus) * state.weatherMods.bigPlayMult,
+    (0.07 + oMods.bigPlayBonus + dMods.bigPlayConcedeBonus + ruleFx.bigPlayRateMod) * state.weatherMods.bigPlayMult,
     0.01, 0.18,
   );
   const bigPlay = rng.chance(bigPlayChance);
@@ -520,11 +515,12 @@ function* runPlay(
     return;
   }
 
-  // Yards — applies offensive rush mult, defensive run-stuff mult, and weather
+  // Yards — applies offensive rush mult, defensive run-stuff mult, weather, and rule effects
+  const ruleFxRun = aggregateRuleEffects(state.league);
   const advantage = (off.rb + off.ol - def.dl - def.lb) / 4;
-  const yardsMult = (oMods.rushYpcMult / dMods.rushYpcMult) * state.weatherMods.rushYdsMult;
+  const yardsMult = (oMods.rushYpcMult / dMods.rushYpcMult) * state.weatherMods.rushYdsMult * ruleFxRun.rushYpcMult;
   const mean = (4.2 + advantage * 0.06) * yardsMult;
-  const isBigRun = rng.chance(clamp(0.05 + oMods.bigPlayBonus * 0.5, 0.02, 0.10) * state.weatherMods.bigPlayMult);
+  const isBigRun = rng.chance(clamp(0.05 + oMods.bigPlayBonus * 0.5 + ruleFxRun.bigPlayRateMod, 0.02, 0.12) * state.weatherMods.bigPlayMult);
   const baseYds = clamp(Math.round(rng.normal(mean, 3)), -3, 14);
   const bigBonus = isBigRun ? clamp(Math.round(rng.normal(20, 10)), 5, 60) : 0;
   const yds = baseYds + bigBonus;
@@ -609,9 +605,9 @@ function* fieldGoalAttempt(
   rng: RNG,
   homeId: string,
 ): Generator<LiveEvent, void, void> {
-  const dist = (100 - state.ballYL) + 17 + state.weatherMods.fgRangePenalty; // weather makes it effectively longer
+  const ruleFxFg = aggregateRuleEffects(state.league);
+  const dist = (100 - state.ballYL) + 17 + state.weatherMods.fgRangePenalty + ruleFxFg.fgRangeBonus;
   const baseAcc = (off.kOvr - 50) / 50; // 0..~0.9
-  // Closer = easier
   const distFactor = clamp(1 - (dist - 30) / 60, 0.05, 0.99);
   const makeP = clamp(0.55 + baseAcc * 0.4 * distFactor, 0.15, 0.99);
   const made = rng.chance(makeP);

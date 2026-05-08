@@ -36,7 +36,21 @@ import {
   buildInitialCareer, evaluateUserSeason, generateJobOffers,
   acceptJobOffer as acceptJobOfferRaw, takeYearOff as takeYearOffRaw, retireFromCareer as retireFromCareerRaw,
 } from "@/lib/cpu/career";
-import type { SaveMeta } from "@/lib/types";
+import { advanceCapInflation } from "@/lib/cpu/cap";
+import { snapshotPowerRankings } from "@/lib/cpu/powerRankings";
+import { applyFranchiseTag, tenderRfa, injectCompPicksIntoDraft } from "@/lib/cpu/faExtras";
+import { checkAchievements, maybeNameAllDecadeTeam, maybeFireCbaEvent } from "@/lib/cpu/milestones";
+import { upgradeStadium, setBranding, ensureStadiumState } from "@/lib/cpu/ownerFlair";
+import { runPreseasonCamps } from "@/lib/cpu/preseason";
+import { changePlayerPosition } from "@/lib/cpu/rosterOps";
+import { watchHotRookies, emitTradeRumors } from "@/lib/cpu/narratives";
+import { ensureAllFinances, recordAllSeasonFinances } from "@/lib/cpu/finances";
+import { ensureAllContracts, advanceCoachContracts } from "@/lib/cpu/coachContracts";
+import { expireRuleEffects } from "@/lib/cpu/milestones";
+import { pressAfterGame } from "@/lib/cpu/pressConf";
+import type {
+  BrandingOverride, RfaTenderLevel, Position as PositionT, SaveMeta,
+} from "@/lib/types";
 
 interface LeagueStore {
   league: League | null;
@@ -92,6 +106,14 @@ interface LeagueStore {
   acceptJobOffer: (offerId: string) => { ok: boolean; reason?: string };
   takeYearOff: () => { ok: boolean; reason?: string };
   retireFromCareer: () => { ok: boolean; reason?: string };
+  // FA extras
+  applyTag: (playerId: string) => { ok: boolean; reason?: string; salary?: number };
+  tenderRfa: (playerId: string, level: RfaTenderLevel) => { ok: boolean; reason?: string };
+  // Roster ops
+  changePosition: (playerId: string, newPos: PositionT) => { ok: boolean; reason?: string; oldOvr?: number; newOvr?: number };
+  // Owner flair
+  upgradeStadium: (teamId: string) => { ok: boolean; reason?: string };
+  setBranding: (teamId: string, override: Partial<BrandingOverride>) => void;
 }
 
 type TradeAssetSetItem = TradeAsset;
@@ -124,6 +146,24 @@ export const useLeague = create<LeagueStore>((set, get) => ({
         lg.userCareer = buildInitialCareer(lg.userMode, lg.userTeam, lg.year);
       }
       if (!lg.jobOffers) lg.jobOffers = [];
+      // Backwards-compat for the latest bundle
+      if (!lg.compPicks) lg.compPicks = [];
+      if (!lg.franchiseTags) lg.franchiseTags = [];
+      if (!lg.rfaTenders) lg.rfaTenders = [];
+      if (!lg.preseasonNotes) lg.preseasonNotes = [];
+      if (!lg.achievements) lg.achievements = [];
+      if (!lg.allDecadeTeams) lg.allDecadeTeams = [];
+      if (!lg.cbaEvents) lg.cbaEvents = [];
+      if (!lg.stadiumStates) lg.stadiumStates = {};
+      if (!lg.brandingOverrides) lg.brandingOverrides = {};
+      if (!lg.coachContracts) lg.coachContracts = {};
+      if (!lg.powerRankingHistory) lg.powerRankingHistory = [];
+      if (lg.capInflation == null) lg.capInflation = 1;
+      if (!lg.finances) lg.finances = {};
+      if (!lg.press) lg.press = [];
+      if (!lg.activeRuleEffects) lg.activeRuleEffects = [];
+      ensureAllFinances(lg);
+      ensureAllContracts(lg);
       ensureAllFranchises(lg);
       // If a save predates the coaching system, generate staffs now
       if (Object.keys(lg.staffs).length === 0) {
@@ -211,6 +251,21 @@ export const useLeague = create<LeagueStore>((set, get) => ({
       userMode,
       userCareer: buildInitialCareer(userMode, userTeam, year),
       jobOffers: [],
+      compPicks: [],
+      franchiseTags: [],
+      rfaTenders: [],
+      preseasonNotes: [],
+      achievements: [],
+      allDecadeTeams: [],
+      cbaEvents: [],
+      stadiumStates: {},
+      brandingOverrides: {},
+      coachContracts: {},
+      powerRankingHistory: [],
+      capInflation: 1,
+      finances: {},
+      press: [],
+      activeRuleEffects: [],
       champions: [],
       hall: [],
       founded: year,
@@ -218,6 +273,8 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     };
     ensureAllFranchises(league);
     initializeCoachingStaffs(league, new RNG(`coach:${sd}:${year}`));
+    ensureAllFinances(league);
+    ensureAllContracts(league);
     // Attach combine numbers to the upcoming draft class
     attachCombineNumbers(league.draftClass, new RNG(`combine:${sd}:${year + 1}`));
     set({ league, busy: false });
@@ -250,6 +307,11 @@ export const useLeague = create<LeagueStore>((set, get) => ({
       simulateWeek(lg);
       // Mid-season trade activity ramps up toward the deadline (week 9)
       runMidSeasonTrades(lg);
+      // Snapshot power rankings for week-over-week movement arrows
+      snapshotPowerRankings(lg);
+      // In-season narrative news (hot rookies + trade rumors)
+      watchHotRookies(lg);
+      emitTradeRumors(lg);
       lg.week += 1;
       if (lg.week > 18) {
         lg.phase = "Playoffs";
@@ -311,7 +373,9 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     set({ busy: true });
     // 0a) Evaluate user's season (HC/GM only) — hot seat / firing
     evaluateUserSeason(lg);
-    // 0b) Roll up season + career records BEFORE anyone retires
+    // 0b) Record season finances (revenue, expenses, P&L) for all teams
+    recordAllSeasonFinances(lg);
+    // 0c) Roll up season + career records BEFORE anyone retires
     rollUpSeasonRecords(lg);
     // 1) Coach carousel — fires/hires + COY award using last season's records
     runCoachCarousel(lg);
@@ -342,7 +406,28 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     lg.pendingOffers = lg.pendingOffers.filter((o) => o.status === "pending" && o.year === lg.year);
     // New season → wipe last year's game plans
     lg.gamePlans = {};
-    // 10) If user is Fired or sitting out, generate job offers
+    // 10) Cap inflation for the new league year
+    advanceCapInflation(lg);
+    // 11) Comp picks injected into next draft (year already advanced inside runFullOffseason)
+    injectCompPicksIntoDraft(lg, lg.year + 1);
+    // 12) Milestone events
+    checkAchievements(lg);
+    maybeNameAllDecadeTeam(lg);
+    maybeFireCbaEvent(lg);
+    expireRuleEffects(lg);
+    // Coach contracts age + auto-extend / expire
+    advanceCoachContracts(lg);
+    ensureAllContracts(lg);
+    // 13) Preseason camp layer (light flavor before regular season)
+    runPreseasonCamps(lg);
+    // 14) Reset franchise tags + RFA tenders for next year
+    lg.franchiseTags = (lg.franchiseTags ?? []).filter((t) => t.year >= lg.year);
+    lg.rfaTenders = (lg.rfaTenders ?? []).filter((t) => t.year >= lg.year);
+    // 15) Prune stale dead cap entries
+    for (const teamId of Object.keys(lg.deadCap ?? {})) {
+      lg.deadCap[teamId] = lg.deadCap[teamId].filter((d) => d.year >= lg.year);
+    }
+    // 16) If user is Fired or sitting out, generate job offers
     if (lg.userCareer && (lg.userCareer.status === "Fired" || lg.userCareer.status === "TakingYearOff")) {
       generateJobOffers(lg);
       // While unemployed, the user has no userTeam to manage
@@ -597,6 +682,46 @@ export const useLeague = create<LeagueStore>((set, get) => ({
     const r = retireFromCareerRaw(lg);
     if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
     return r;
+  },
+
+  applyTag: (playerId) => {
+    const lg = get().league;
+    if (!lg || !lg.userTeam) return { ok: false, reason: "No team" };
+    const r = applyFranchiseTag(lg, lg.userTeam, playerId);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+
+  tenderRfa: (playerId, level) => {
+    const lg = get().league;
+    if (!lg || !lg.userTeam) return { ok: false, reason: "No team" };
+    const r = tenderRfa(lg, lg.userTeam, playerId, level);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+
+  changePosition: (playerId, newPos) => {
+    const lg = get().league;
+    if (!lg) return { ok: false, reason: "No league" };
+    const r = changePlayerPosition(lg, playerId, newPos);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+
+  upgradeStadium: (teamId) => {
+    const lg = get().league;
+    if (!lg) return { ok: false, reason: "No league" };
+    const r = upgradeStadium(lg, teamId);
+    if (r.ok) { set({ league: { ...lg } }); void get().saveNow(); }
+    return r;
+  },
+
+  setBranding: (teamId, override) => {
+    const lg = get().league;
+    if (!lg) return;
+    setBranding(lg, teamId, override);
+    set({ league: { ...lg } });
+    void get().saveNow();
   },
 
   finalizeLiveGame: async (gameId, result) => {

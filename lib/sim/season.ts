@@ -7,6 +7,7 @@ import { updateGameRecords, scanRecordChases } from "@/lib/cpu/records";
 import { bumpChemistryFromGame } from "@/lib/cpu/chemistry";
 import { rollWeather } from "@/lib/cpu/weather";
 import { publishWeeklyMockDraftIfApplicable } from "@/lib/cpu/scouting";
+import { pressAfterGame } from "@/lib/cpu/pressConf";
 
 export function emptyStandings(): Record<string, StandingsRow> {
   const s: Record<string, StandingsRow> = {};
@@ -113,6 +114,7 @@ export function simulateWeek(league: League): { played: Game[]; results: GameRes
     rollGameInjuries(league, g);
     updateGameRecords(league, g);
     bumpChemistryFromGame(league, g);
+    pressAfterGame(league, g.id);
     results.push(result);
     league.news.unshift({
       id: `n${Date.now()}-${g.id}`,

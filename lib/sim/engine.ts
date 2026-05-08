@@ -8,6 +8,7 @@ import { personalityFor } from "@/lib/cpu/personalities";
 import { offensiveMods, defensiveMods, ensureGamePlan, type CoachingMods } from "@/lib/cpu/gamePlan";
 import { rollWeather, weatherModifiers, hfaBoost } from "@/lib/cpu/weather";
 import { chemistryActiveBonus } from "@/lib/cpu/chemistry";
+import { aggregateRuleEffects } from "@/lib/cpu/milestones";
 import { clamp } from "@/lib/utils";
 
 // =====================================================================
@@ -327,10 +328,11 @@ function distributePlayerStats(
   const teIds = offRatings.teIds;
   const rbIds = offRatings.rbIds;
 
-  // Allocate yards — weather suppresses passing more than running
+  // Allocate yards — weather suppresses passing more than running, rule effects apply globally
+  const ruleFx = aggregateRuleEffects(ctx.league);
   const passYardShare = result === "TD" || result === "FG" ? 0.6 : 0.55;
-  const passYardsRaw = Math.round(yards * passYardShare * ctx.weatherMods.passYdsMult);
-  const rushYardsRaw = Math.round(yards * (1 - passYardShare) * ctx.weatherMods.rushYdsMult);
+  const passYardsRaw = Math.round(yards * passYardShare * ctx.weatherMods.passYdsMult * ruleFx.completionMultGlobal);
+  const rushYardsRaw = Math.round(yards * (1 - passYardShare) * ctx.weatherMods.rushYdsMult * ruleFx.rushYpcMult);
   const passYards = Math.max(0, passYardsRaw);
   const rushYards = Math.max(0, rushYardsRaw);
 

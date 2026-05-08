@@ -4,6 +4,7 @@ import { TEAMS, TEAMS_BY_ID } from "@/lib/data/teams";
 import { computeMarketValue } from "@/lib/gen/player";
 import { personalityFor } from "./personalities";
 import { computeTeamPhase } from "./strategy";
+import { currentTeamPayroll } from "@/lib/offseason/freeAgency";
 import { clamp } from "@/lib/utils";
 
 // =====================================================================
@@ -24,8 +25,18 @@ export interface RestructureResult {
 }
 
 /**
- * Restructure converts most of this year's AAV into prorated bonus over
- * the remaining years. Saves cap now; pushes dead cap into the future.
+ * Restructure converts most of this year's AAV into prorated bonus.
+ *
+ * Total cap commitment is unchanged — money is shifted, not erased. We
+ * implement this by leaving `aav` alone (so trades transfer cleanly) and
+ * pushing two adjustments into `league.deadCap`:
+ *   - Year 1: NEGATIVE entry (-capRelief) → reduces this season's hit
+ *   - Years 2..N: POSITIVE entries (+proratedPerYear) → the hangover
+ *
+ * Net delta: -capRelief + (years-1) * proratedPerYear ≈ 0
+ *
+ * Side effect: signingBonus + guaranteedYears bump so a future cut hurts
+ * (mirrors real NFL — restructures lock you in).
  */
 export function restructureContract(
   league: League, playerId: string,
@@ -36,22 +47,43 @@ export function restructureContract(
   }
   const c = p.contract;
   if (c.years < 2) return { ok: false, reason: "Need 2+ years remaining", capRelief: 0, futureHits: [] };
-  // Convert ~70% of this year's AAV into bonus prorated
+
+  // Convert ~70% of one year's AAV into prorated bonus over the remaining contract.
   const convert = Math.round(c.aav * 0.70 * 10) / 10;
   const proratedPerYear = Math.round((convert / c.years) * 10) / 10;
-  c.aav = Math.round((c.aav - convert + proratedPerYear) * 10) / 10;
+  // Year-1 cap saving = convert minus the year-1 share of the proration
+  const capRelief = Math.round((convert - proratedPerYear) * 10) / 10;
+
+  // Bonus / guarantee tracking — affects a future cut's dead cap charge
   c.signingBonus = (c.signingBonus ?? 0) + convert;
   c.guaranteedYears = Math.max(c.guaranteedYears ?? 0, 1);
-  const capRelief = Math.round((convert - proratedPerYear) * 10) / 10;
+
+  // Push the cap shifts into deadCap. AAV stays untouched.
+  if (!league.deadCap[p.team]) league.deadCap[p.team] = [];
+  // Year-1 relief (negative entry — shows as cap savings)
+  league.deadCap[p.team].push({
+    teamId: p.team,
+    year: league.year,
+    amount: -capRelief,
+    playerName: `${p.firstName} ${p.lastName} (restructure relief)`,
+  });
+  // Future-year hangover (positive entries spread across remaining years)
   const futureHits: { year: number; amount: number }[] = [];
   for (let i = 1; i < c.years; i++) {
+    league.deadCap[p.team].push({
+      teamId: p.team,
+      year: league.year + i,
+      amount: proratedPerYear,
+      playerName: `${p.firstName} ${p.lastName} (restructure proration)`,
+    });
     futureHits.push({ year: league.year + i, amount: proratedPerYear });
   }
+
   league.news.unshift({
     id: `restruct${p.id}-${league.year}`,
     year: league.year, week: 0, ts: Date.now(),
     category: "FA",
-    headline: `${TEAMS_BY_ID[p.team].abbr} restructure ${p.firstName} ${p.lastName}'s deal — $${capRelief.toFixed(1)}M cap relief`,
+    headline: `${TEAMS_BY_ID[p.team].abbr} restructure ${p.firstName} ${p.lastName}'s deal — $${capRelief.toFixed(1)}M cap relief now, +$${proratedPerYear.toFixed(1)}M / yr through ${league.year + c.years - 1}`,
     teamId: p.team, playerId: p.id,
   });
   return { ok: true, capRelief, futureHits };
@@ -64,8 +96,8 @@ export function extendContract(
   const p = league.players[playerId];
   if (!p || !p.contract || !p.team) return { ok: false, reason: "No active contract" };
   const team = TEAMS_BY_ID[p.team];
-  // Validate cap
-  const capUsed = currentTeamPayrollLite(league, team.id);
+  // Validate cap (currentTeamPayroll already includes dead cap for this year)
+  const capUsed = currentTeamPayroll(league, team.id);
   const capDelta = opts.newAav - p.contract.aav;
   if (capUsed + capDelta > team.cap) {
     return { ok: false, reason: "Not enough cap room" };
@@ -170,16 +202,6 @@ export function holdoutAttributeImpact(player: Player): number {
   if (player.demandsExtension && (player.holdoutWeeks ?? 0) > 0) return -3;
   if (player.demandsExtension) return -1;        // still distracted
   return 0;
-}
-
-export function currentTeamPayrollLite(league: League, teamId: string): number {
-  let total = 0;
-  for (const p of Object.values(league.players)) {
-    if (p.team === teamId && p.contract) total += p.contract.aav;
-  }
-  // Add dead cap for this year
-  const dead = (league.deadCap[teamId] ?? []).filter((d) => d.year === league.year).reduce((s, d) => s + d.amount, 0);
-  return total + dead;
 }
 
 /** Suggested extension AAV — used by user UI. */
